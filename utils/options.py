@@ -55,7 +55,7 @@ class ModelParams:
         default="normal",
         choices=["normal", "uniform"],
     )
-    relu: bool = True  # Whether to use ReLU
+    relu: bool = False  # Whether to use ReLU
 
 
 class Options:

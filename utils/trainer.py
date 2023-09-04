@@ -423,6 +423,7 @@ class Trainer:
                     self.save()
             else:
                 self.logger.info("|\n")
+        return best
 
     def test_model(self) -> float:
         metrics_value = self.valid(test=True)
@@ -477,6 +478,6 @@ class Trainer:
             self.visualize_kernel()
             return
         if self.general_params.test is False:
-            self.train_model()
+            return self.train_model()
         else:
             self.test_model()
