@@ -31,10 +31,11 @@ class DatasetParams:
 class TrainerParams:
     batch_size: int = 128  # Batch size, 0 for all
     optimizer: str = simple_parsing.field(
-        default="SGD", choices=["SGD", "AdamW"]
+        default="AdamW", choices=["SGD", "AdamW"]
     )  # Optimizer name
-    lr: float = 1e-2  # Learning rate
+    lr: float = 3e-3  # Learning rate
     lr_morpho: float = 1  # Ratio of learning rate for morphological operations
+    weight_decay: float = 0  # Weight decay
     max_epochs: int = 400  # Maximum number of epochs
     scheduler: str = "CosineAnnealingLR"
     amp: bool = True  # Whether to use automatic mixed precision
@@ -46,7 +47,7 @@ class ModelParams:
         default="MobileNetV2-31",
         choices=["MobileNetV2-31", "ResNet20"],
     )  # Feature extractor Model name
-    morpho: str = simple_parsing.field(
+    morpho_type: str = simple_parsing.field(
         default="infinity",
         choices=["none", "dilation", "infinity"],
     )  # Whether to ablate morphological operations
@@ -56,6 +57,14 @@ class ModelParams:
         choices=["normal", "uniform"],
     )
     relu: bool = False  # Whether to use ReLU
+    conv_type: str = simple_parsing.field(
+        default="normal",
+        choices=["normal", "norm1", "norminf", "d_inf"],
+    )
+    norm_type: str = simple_parsing.field(
+        default="normal",
+        choices=["mean", "norm", "none", "normal"],
+    )
 
 
 class Options:

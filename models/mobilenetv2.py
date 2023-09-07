@@ -2,9 +2,8 @@ from typing import Callable, List, Literal, Optional
 
 import torch
 from torch import Tensor, nn
-from torchvision.ops import Conv2dNormActivation
 
-from .morphology import DilationConv, InfinityConv
+from .layers import BatchNorm2d, Conv1x1, DilationConv, InfinityConv
 
 
 class InvertedResidual(nn.Module):
@@ -14,57 +13,59 @@ class InvertedResidual(nn.Module):
         out_dim: int,
         stride: int,
         hidden_dim: int,
-        norm_layer: Optional[Callable[..., nn.Module]] = nn.BatchNorm2d,
-        activation_layer: Optional[Callable[..., nn.Module]] = nn.ReLU,
-        morpho: Literal["dilation", "infinity", "none", "maxpool"] = "none",
+        norm_type: Literal["mean", "norm", "none", "normal"] = "norm",
+        use_relu: bool = True,
+        morpho_type: Literal["dilation", "infinity", "none", "maxpool"] = "none",
+        conv_type: Literal["normal", "norm1", "norminf", "d_inf"] = "normal",
     ) -> None:
         super().__init__()
         if stride not in [1, 2]:
             raise ValueError(f"stride should be 1 or 2 instead of {stride}")
 
         self.use_res_connect = stride == 1 and in_dim == out_dim
+        activation_layer = nn.ReLU if use_relu else nn.Identity
 
         # pw
         if in_dim != hidden_dim:
-            self.expension = Conv2dNormActivation(
-                in_dim,
-                hidden_dim,
-                kernel_size=1,
-                norm_layer=norm_layer,
-                activation_layer=activation_layer,
-            )
+            self.ex = Conv1x1(in_dim, hidden_dim, stride=1, conv_type=conv_type)
+            self.ex_norm = BatchNorm2d(hidden_dim, norm_type=norm_type)
+            self.ex_activation = activation_layer()
         else:
-            self.expension = nn.Identity()
+            self.ex = nn.Identity()
+            self.ex_norm = nn.Identity()
+            self.ex_activation = nn.Identity()
 
         # dw
         padding = 1
         kernel_size = 3
 
-        if morpho == "dilation":
+        if morpho_type == "dilation":
             self.dw = DilationConv(hidden_dim, kernel_size, stride, padding)
             self.dw_activation = nn.Identity()
 
-        elif morpho == "infinity":
+        elif morpho_type == "infinity":
             self.dw = InfinityConv(hidden_dim, kernel_size, stride, padding)
             self.dw_activation = nn.Identity()
-        elif morpho == "none":
+        elif morpho_type == "none":
             self.dw = nn.Conv2d(
                 hidden_dim, hidden_dim, 3, 1, 1, bias=False, groups=hidden_dim
             )
-            self.dw_activation = nn.ReLU6()
+            self.dw_activation = nn.ReLU()
         else:
             raise ValueError("morpho should be one of 'dilation', 'infinity', 'none'")
 
-        self.dw_norm = norm_layer(hidden_dim)
+        self.dw_norm = BatchNorm2d(hidden_dim, norm_type=norm_type)
 
         # pw
-        self.pw = nn.Conv2d(hidden_dim, out_dim, 1, 1, 0, bias=False)
-        self.pw_norm = norm_layer(out_dim)
+        self.pw = Conv1x1(hidden_dim, out_dim, stride=1, conv_type=conv_type)
+        self.pw_norm = BatchNorm2d(out_dim, norm_type=norm_type)
 
     def forward(self, x: Tensor) -> Tensor:
         if self.use_res_connect:
             identity = x
-        x = self.expension(x)
+        x = self.ex(x)
+        x = self.ex_norm(x)
+        x = self.ex_activation(x)
         x = self.dw(x)
         x = self.dw_norm(x)
         x = self.dw_activation(x)
@@ -84,11 +85,12 @@ class MobileNetV2(nn.Module):
         input_channel: Optional[int] = None,
         last_channel: Optional[int] = None,
         block: Optional[Callable[..., nn.Module]] = InvertedResidual,
-        morpho: Literal["dilation", "infinity", "none", "maxpool"] = "none",
+        morpho_type: Literal["dilation", "infinity", "none", "maxpool"] = "none",
         morpho_init: Literal["uniform", "normal"] = "normal",
-        norm_layer: Optional[Callable[..., nn.Module]] = nn.BatchNorm2d,
+        norm_type: Literal["mean", "norm", "none", "normal"] = "normal",
         dropout: float = 0.2,
-        activation_layer: Optional[Callable[..., nn.Module]] = nn.ReLU,
+        use_relu: bool = True,
+        conv_type: Literal["normal", "norm1", "norminf", "d_inf"] = "normal",
     ) -> None:
         super().__init__()
 
@@ -116,9 +118,10 @@ class MobileNetV2(nn.Module):
                 input_channel,
                 stride=first_layer_stride,
                 hidden_dim=input_channel,
-                norm_layer=norm_layer,
-                activation_layer=activation_layer,
-                morpho=morpho,
+                norm_type=norm_type,
+                use_relu=use_relu,
+                morpho_type=morpho_type,
+                conv_type=conv_type,
             )
         ]
         # building inverted residual blocks
@@ -132,20 +135,20 @@ class MobileNetV2(nn.Module):
                         output_channel,
                         stride,
                         hidden_dim=t * input_channel,
-                        norm_layer=norm_layer,
-                        morpho=morpho,
+                        norm_type=norm_type,
+                        morpho_type=morpho_type,
+                        conv_type=conv_type,
+                        use_relu=use_relu,
                     )
                 )
                 input_channel = output_channel
         # building last several layers
         if input_channel != last_channel:
             features.append(
-                Conv2dNormActivation(
-                    input_channel,
-                    last_channel,
-                    kernel_size=1,
-                    norm_layer=norm_layer,
-                    activation_layer=nn.ReLU,
+                nn.Sequential(
+                    Conv1x1(input_channel, last_channel, stride=1, type=conv_type),
+                    BatchNorm2d(last_channel, norm_type=norm_type),
+                    nn.ReLU(),
                 )
             )
         # make it nn.Sequential

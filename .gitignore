@@ -1,5 +1,6 @@
 data/
-runs/
+events.out.tfevents.*
+*.ckpt
 temp/
 
 # Byte-compiled / optimized / DLL files

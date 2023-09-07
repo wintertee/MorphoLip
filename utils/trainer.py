@@ -54,14 +54,14 @@ class Trainer:
         ) = self._init_dataloader()
 
         self.model = self._init_model().to(self.device)
-        self.logger.info(
-            summary(
-                self.model,
-                input_size=(self.trainer_params.batch_size, 3, 32, 32),
-                col_names=["kernel_size", "input_size", "output_size", "num_params"],
-                verbose=0,
-            )
-        )
+        # self.logger.info(
+        #     summary(
+        #         self.model,
+        #         input_size=(self.trainer_params.batch_size, 3, 32, 32),
+        #         col_names=["kernel_size", "input_size", "output_size", "num_params"],
+        #         verbose=0,
+        #     )
+        # )
 
         self.optimizer = self._init_optimizer()
         self.scheduler = self._init_scheduler()
@@ -244,10 +244,6 @@ class Trainer:
 
     def _init_model(self):
         if self.model_params.model == "MobileNetV2-31":
-            if self.model_params.relu:
-                activation_layer = nn.ReLU
-            else:
-                activation_layer = nn.Identity
             model = MobileNetV2(
                 num_classes=self.num_classes,
                 inverted_residual_setting=[
@@ -260,9 +256,11 @@ class Trainer:
                 input_channel=16,
                 last_channel=64,
                 block=InvertedResidual,
-                morpho=self.model_params.morpho,
+                morpho_type=self.model_params.morpho_type,
                 morpho_init=self.model_params.morpho_init,
-                activation_layer=activation_layer,
+                use_relu=self.model_params.relu,
+                conv_type=self.model_params.conv_type,
+                norm_type=self.model_params.norm_type,
             )
 
         elif self.model_params.model == "ResNet20":
@@ -288,12 +286,13 @@ class Trainer:
                     },
                 ],
                 momentum=0.9,
-                weight_decay=5e-4,
+                weight_decay=self.trainer_params.weight_decay,
             )
         elif self.trainer_params.optimizer == "AdamW":
             return torch.optim.AdamW(
                 self.model.parameters(),
                 lr=self.trainer_params.lr,
+                weight_decay=self.trainer_params.weight_decay,
             )
         else:
             raise NotImplementedError
@@ -419,10 +418,10 @@ class Trainer:
             if val_acc > best:
                 self.logger.info("| best\n")
                 best = val_acc
-                if self.epoch > self.trainer_params.max_epochs // 2 and self.use_logger:
-                    self.save()
+                self.save()
             else:
                 self.logger.info("|\n")
+            
         return best
 
     def test_model(self) -> float:

@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch import Tensor, nn
+from torch import Tensor
 
 
 @torch.cuda.amp.custom_fwd(cast_inputs=torch.float16)
@@ -40,38 +40,3 @@ def infinity(
     output, _ = torch.max(output, 4)
     output, _ = torch.max(output, 4)
     return output
-
-
-class DilationConv(nn.Module):
-    def __init__(
-        self,
-        channels: int,
-        kernel_size: int,
-        stride: int = 1,
-        padding: int = 0,
-    ):
-        super().__init__()
-        self.channels = channels
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-
-        self.se = nn.Parameter(
-            torch.empty(self.channels, self.kernel_size, self.kernel_size).squeeze()
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return dilation(x, self.se, self.stride, self.padding)
-
-    def extra_repr(self) -> str:
-        return (
-            f"channels={self.channels}, "
-            f"kernel_size={self.kernel_size}, "
-            f"stride={self.stride}, "
-            f"padding={self.padding}"
-        )
-
-
-class InfinityConv(DilationConv):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return infinity(x, self.se, self.stride, self.padding)
