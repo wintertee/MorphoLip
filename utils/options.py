@@ -45,7 +45,7 @@ class TrainerParams:
 class ModelParams:
     model: str = simple_parsing.field(
         default="MobileNetV2-31",
-        choices=["MobileNetV2-31", "ResNet20"],
+        choices=["MobileNetV2-31", "ResNet8"],
     )  # Feature extractor Model name
     morpho_type: str = simple_parsing.field(
         default="infinity",
@@ -63,7 +63,7 @@ class ModelParams:
     )
     norm_type: str = simple_parsing.field(
         default="normal",
-        choices=["mean", "norm", "none", "normal"],
+        choices=["mean", "norm", "none", "normal", "globalnorm"],
     )
 
 

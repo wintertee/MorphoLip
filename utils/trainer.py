@@ -18,7 +18,7 @@ from torchvision.datasets import CIFAR10, CIFAR100
 from tqdm import tqdm
 
 from models.mobilenetv2 import InvertedResidual, MobileNetV2
-from models.resnet import resnet20
+from models.resnet import resnet8
 
 from . import utils
 from .options import DatasetParams, GeneralParams, ModelParams, TrainerParams
@@ -54,14 +54,22 @@ class Trainer:
         ) = self._init_dataloader()
 
         self.model = self._init_model().to(self.device)
-        # self.logger.info(
-        #     summary(
-        #         self.model,
-        #         input_size=(self.trainer_params.batch_size, 3, 32, 32),
-        #         col_names=["kernel_size", "input_size", "output_size", "num_params"],
-        #         verbose=0,
-        #     )
-        # )
+        try:
+            self.logger.info(
+                summary(
+                    self.model,
+                    input_size=(self.trainer_params.batch_size, 3, 32, 32),
+                    col_names=[
+                        "kernel_size",
+                        "input_size",
+                        "output_size",
+                        "num_params",
+                    ],
+                    verbose=0,
+                )
+            )
+        except Exception:
+            pass
 
         self.optimizer = self._init_optimizer()
         self.scheduler = self._init_scheduler()
@@ -263,8 +271,8 @@ class Trainer:
                 norm_type=self.model_params.norm_type,
             )
 
-        elif self.model_params.model == "ResNet20":
-            model = resnet20(num_classes=self.num_classes)
+        elif self.model_params.model == "ResNet8":
+            model = resnet8(num_classes=self.num_classes)
         else:
             raise NotImplementedError
         return model
@@ -421,7 +429,7 @@ class Trainer:
                 self.save()
             else:
                 self.logger.info("|\n")
-            
+
         return best
 
     def test_model(self) -> float:

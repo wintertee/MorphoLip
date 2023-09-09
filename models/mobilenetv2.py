@@ -3,7 +3,7 @@ from typing import Callable, List, Literal, Optional
 import torch
 from torch import Tensor, nn
 
-from .layers import BatchNorm2d, Conv1x1, DilationConv, InfinityConv
+from .layers import BatchNorm2d, Conv1x1, DilationConv, InfinityConv, NormLinear
 
 
 class InvertedResidual(nn.Module):
@@ -72,7 +72,7 @@ class InvertedResidual(nn.Module):
         x = self.pw(x)
         x = self.pw_norm(x)
         if self.use_res_connect:
-            x += identity
+            x = x * 0.5 + identity * 0.5
         return x
 
 
@@ -157,7 +157,7 @@ class MobileNetV2(nn.Module):
         # building classifier
         self.classifier = nn.Sequential(
             nn.Dropout(p=dropout),
-            nn.Linear(last_channel, num_classes),
+            NormLinear(last_channel, num_classes),
         )
 
         # weight initialization

@@ -43,6 +43,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
+from .layers import BatchNorm2d, Conv1x1, InfinityConv
+
 __all__ = [
     "ResNet",
     "resnet20",
@@ -66,6 +68,36 @@ class LambdaLayer(nn.Module):
 
     def forward(self, x):
         return self.lambd(x)
+
+
+class InfinityBlock(nn.Module):
+    expansion = 1
+
+    def __init__(
+        self,
+        in_planes,
+        planes,
+        stride=1,
+        norm_type="mean",
+        conv_type="norm1",
+    ):
+        super().__init__()
+        self.conv1 = Conv1x1(in_planes, planes, stride=1, conv_type=conv_type)
+        self.bn1 = BatchNorm2d(planes, norm_type=norm_type)
+        self.conv2 = InfinityConv(planes, 3, stride=stride, padding=1)
+        self.bn2 = BatchNorm2d(planes, norm_type=norm_type)
+        if in_planes == planes:
+            self.shortcut = nn.Identity()
+        else:
+            self.shortcut = Conv1x1(
+                in_planes, planes, stride=stride, conv_type=conv_type
+            )
+
+    def forward(self, x):
+        out = self.bn1(self.conv1(x))
+        out = self.bn2(self.conv2(out))
+        out = out / 2 + (self.shortcut(x) / 2)
+        return out
 
 
 class BasicBlock(nn.Module):
@@ -117,15 +149,15 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, expansion=1):
         super(ResNet, self).__init__()
         self.in_planes = 16
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
+        self.layer1 = self._make_layer(block, 16 * expansion, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 32 * expansion, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 64 * expansion, num_blocks[2], stride=2)
         self.linear = nn.Linear(64, num_classes)
 
         self.apply(_weights_init)
@@ -148,6 +180,10 @@ class ResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
+
+
+def resnet8(num_classes):
+    return ResNet(InfinityBlock, [1, 1, 1], num_classes)
 
 
 def resnet20(num_classes):
