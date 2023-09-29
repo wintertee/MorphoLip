@@ -78,7 +78,7 @@ class InfinityBlock(nn.Module):
         in_planes,
         planes,
         stride=1,
-        norm_type="mean",
+        norm_type="globalnorm",
         conv_type="norm1",
     ):
         super().__init__()
@@ -182,8 +182,39 @@ class ResNet(nn.Module):
         return out
 
 
+class ResNetLip(nn.Module):
+    def __init__(self, block, num_blocks, num_classes=10, expansion=1):
+        super().__init__()
+        self.in_planes = 3
+
+        self.layer1 = self._make_layer(block, 16 * expansion, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 32 * expansion, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 64 * expansion, num_blocks[2], stride=2)
+        self.linear = nn.Linear(64, num_classes)
+
+        self.apply(_weights_init)
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = F.avg_pool2d(out, out.size()[3])
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
+
+
 def resnet8(num_classes):
-    return ResNet(InfinityBlock, [1, 1, 1], num_classes)
+    return ResNetLip(InfinityBlock, [1, 1, 1], num_classes)
 
 
 def resnet20(num_classes):

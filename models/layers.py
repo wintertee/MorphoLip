@@ -88,7 +88,7 @@ class Conv1x1(nn.Module):
         in_dim: int,
         out_dim: int,
         stride: int,
-        conv_type: Literal["normal", "norm1", "norminf", "d_inf"] = "normal",
+        conv_type: Literal["normal", "norm1", "norminf", "d_inf","halfnorm"] = "normal",
     ) -> None:
         super().__init__()
         self.in_dim = in_dim
@@ -119,9 +119,17 @@ class Conv1x1(nn.Module):
             x = x.unsqueeze(1)  # shape: [N, 1, C, H, W]
             weight = self.weight.unsqueeze(0)  # shape: [1, out_dim, C, 1, 1]
 
-            x = torch.abs(x - weight)
+            x = torch.abs(x + weight)
             x, _ = torch.max(x, dim=2)
             return x
+        elif self.conv_type == "halfnorm":
+            with torch.no_grad():
+                new_weight = self.weight.data.squeeze()
+                new_weight = torch.sqrt(self.abs(new_weight))
+                new_weight = torch.sum(new_weight, dim=1)
+                halfnorm = new_weight.max()
+            x = F.conv2d(x, self.weight, stride = self.stride)
+            x = x / halfnorm;            
 
     @torch.no_grad()
     def constrain_norm1(self) -> None:

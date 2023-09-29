@@ -59,7 +59,7 @@ class ModelParams:
     relu: bool = False  # Whether to use ReLU
     conv_type: str = simple_parsing.field(
         default="normal",
-        choices=["normal", "norm1", "norminf", "d_inf"],
+        choices=["normal", "norm1", "norminf", "d_inf","halfnorm"],
     )
     norm_type: str = simple_parsing.field(
         default="normal",

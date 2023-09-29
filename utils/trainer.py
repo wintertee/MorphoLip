@@ -26,8 +26,8 @@ from .options import DatasetParams, GeneralParams, ModelParams, TrainerParams
 
 @dataclass
 class Trainer:
-    dataset_params: DatasetParams
     general_params: GeneralParams
+    dataset_params: DatasetParams
     trainer_params: TrainerParams
     model_params: ModelParams
 
