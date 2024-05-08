@@ -26,9 +26,9 @@ Celle-ci est vrai pour:
 - les couches linéaires (convolution, fully connected, etc.)
 - les couches de distance $L^\infty$ (pooling, morphology, etc.)
 
-Si on est dans la dernière couche, alors la prédiction $y = \argmax_{i}{f_i}(x)$ ne change pas si on multiplie les poids et les biais par une constante $c$.
+Si on est dans la dernière couche, alors la prédiction $y = \arg \max_{i}{f_i}(x)$ ne change pas si on multiplie les poids et les biais par une constante $c$.
 
-Donc pour un réseau 1-lipschitien, si on multiplie les poids et les biais par $\{c_1,...,c_n\}$ dans toutes ses couches $\{l^1,...,l^n\}$, même si le réseau n'est plus 1-lipschitzien, pour tout $x$, le réseau garde la même prédiction y. En effet, les logits deviennent $f_i' = \prod_{j=1}^n c_n f_i$ et la prédiction $y' = \argmax_i f_i' = \argmax_i f_i = y$. De cette façon, on construit un réseau non-lipschitien à partir d'un réseau 1-lipschitien, mais qui garde toujour la même prédiction.
+Donc pour un réseau 1-lipschitien, si on multiplie les poids et les biais par $\{c_1,...,c_n\}$ dans toutes ses couches $\{l^1,...,l^n\}$, même si le réseau n'est plus 1-lipschitzien, pour tout $x$, le réseau garde la même prédiction y. En effet, les logits deviennent $$f_i' = \prod_{j=1}^n c_n f_i$$ et la prédiction $y' = \arg \max_i f_i' = \arg \max_i f_i = y$. De cette façon, on construit un réseau non-lipschitien à partir d'un réseau 1-lipschitien, mais qui garde toujour la même prédiction.
 
 ## Solution
 
